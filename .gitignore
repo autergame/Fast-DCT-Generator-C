@@ -4,9 +4,10 @@
 *.ipdb
 Debug/
 x64/Debug/
+Fast-DCT-Generator/output.txt
 Fast-DCT-Generator/Debug/
 Fast-DCT-Generator/Release/
 Fast-DCT-Generator/x64/Debug/
 Fast-DCT-Generator/x64/Release/
-Fast-DCT-Generator/__pycache__/
+Generator/__pycache__/
 StructLayoutSettings.json

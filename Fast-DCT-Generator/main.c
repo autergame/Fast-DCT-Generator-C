@@ -59,7 +59,7 @@ void check_output(const char* name, const float* ref, const float* out, int bloc
 	for (int i = 0; i < block_size * block_size; i++)
 	{
 		float diff = fabsf(ref[i] - out[i]);
-		printffprintf(strout, size, file, "%s %dx%d  index: %5d  ref: %12.6f out: %12.6f diff: %8.6f\n",
+		printffprintf(strout, size, file, "%s %dx%d  index: %5d  ref: %12.6f out: %12.6f diff: %9.6f\n",
 			name, block_size, block_size, i, ref[i], out[i], diff);
 	}
 }
@@ -107,9 +107,9 @@ int main()
 			for (int j = 0; j < block_size; j++)
 			{
 				if (i == 0)
-					dct_matrix[i * block_size + j] = 1 / sqrt(block_size);
+					dct_matrix[i * block_size + j] = 1.f / sqrtf(block_size);
 				else
-					dct_matrix[i * block_size + j] = sqrt(2.0 / block_size) * cos(((2 * j + 1) * i * M_PI) / (2 * block_size));
+					dct_matrix[i * block_size + j] = sqrtf(2.f / block_size) * cosf(((2.f * j + 1.f) * i * 3.141592f) / (2.f * block_size));
 			}
 		}
 
@@ -128,7 +128,7 @@ int main()
 
 		dct_src = (float*)calloc(block_size_full, sizeof(float));
 		for (int i = 0; i < block_size_full; i++)
-			dct_src[i] = rand() % 256;
+			dct_src[i] = (float)(rand() % 256);
 
 		printffprintf(strout, sizeof(strout), file, "FDCT IDCT %dx%d\n\n", block_size, block_size);
 

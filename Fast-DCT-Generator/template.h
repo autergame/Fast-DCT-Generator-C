@@ -14,9 +14,10 @@ inline void fdct_1d_%BLOCK_SIZE%x%BLOCK_SIZE%(float *dst, const float *src,
 
 void fdct_%BLOCK_SIZE%x%BLOCK_SIZE%(float *dst, const float *src)
 {
-	float tmp[%BLOCK_SIZE% * %BLOCK_SIZE%] = { 0.f };
+	float* tmp = (float*)calloc(%BLOCK_SIZE% * %BLOCK_SIZE%, 4);
 	fdct_1d_%BLOCK_SIZE%x%BLOCK_SIZE%(tmp, src, 1, %BLOCK_SIZE%, 1, %BLOCK_SIZE%);
 	fdct_1d_%BLOCK_SIZE%x%BLOCK_SIZE%(dst, tmp, %BLOCK_SIZE%, 1, %BLOCK_SIZE%, 1);
+	free(tmp);
 }
 
 inline void idct_1d_%BLOCK_SIZE%x%BLOCK_SIZE%(float *dst, const float *src,
@@ -32,7 +33,8 @@ inline void idct_1d_%BLOCK_SIZE%x%BLOCK_SIZE%(float *dst, const float *src,
 
 void idct_%BLOCK_SIZE%x%BLOCK_SIZE%(float *dst, const float *src)
 {
-	float tmp[%BLOCK_SIZE% * %BLOCK_SIZE%] = { 0.f };
+	float* tmp = (float*)calloc(%BLOCK_SIZE% * %BLOCK_SIZE%, 4);
 	idct_1d_%BLOCK_SIZE%x%BLOCK_SIZE%(tmp, src, 1, %BLOCK_SIZE%, 1, %BLOCK_SIZE%);
 	idct_1d_%BLOCK_SIZE%x%BLOCK_SIZE%(dst, tmp, %BLOCK_SIZE%, 1, %BLOCK_SIZE%, 1);
+	free(tmp);
 }

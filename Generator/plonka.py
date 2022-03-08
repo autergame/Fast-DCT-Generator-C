@@ -226,7 +226,7 @@ if __name__ == '__main__':
 	diffs = fdct_ref - fdct_out
 	ok = True
 	for diff in diffs:
-		print('\n')
 		print('ref', fdct_ref)
 		print('out', fdct_out)
-		print('cmp', diffs)
+		print('diff', diffs)
+		print('\n')

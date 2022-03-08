@@ -142,11 +142,6 @@
     <ClCompile Include="main.c" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="genall.bat" />
-    <None Include="gen_c.py" />
-    <None Include="plonka.py" />
-  </ItemGroup>
-  <ItemGroup>
     <ClInclude Include="template.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

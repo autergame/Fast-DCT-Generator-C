@@ -57,53 +57,45 @@ def get_code(n, fn):
 	aliases = {}
 	for (dst, src) in code:
 		dst = str(dst)
-   
+
 		print(src)
 
 		# yeah well...
 		src = str(src).replace('1.0*','')
 		src = str(src).replace('*1.0','')
 
-		# a*x + a*y -> a * (x + y)
-		s = src.split()
-		if len(s) == 3 and s[1] in ('-', '+'):
-			a = s[0].split('*')
-			b = s[2].split('*')
-			if len(a) == 2 and len(b) == 2:
-				cst1, xval1 = a
-				cst2, xval2 = b
-				if cst1.startswith('x'): xval1, cst1 = a
-				if cst2.startswith('x'): xval2, cst2 = b
-				if cst1 == cst2:
-					src = '%s * (%s %s %s)' % (cst1, xval1, s[1], xval2)
-
 		applied = False
 		# a*src[y * src_stridea] + b*src[y * src_stridea] -> a * src[y * src_stridea] + b * src[y * src_stridea] 
-		m = re.match(r'([0-9.-]+)\*(src\[\d \* src_stridea\]) ([+-]) ([0-9.-]+)\*(src\[\d \* src_stridea\])', src)
+		m = re.match(r'([0-9.-]+)\*(src\[[0-9 ]+ \* src_stridea\]) ([+-]) ([0-9.-]+)\*(src\[[0-9 ]+ \* src_stridea\])', src)
 		if m:
 			cst1, var1, sign, cst2, var2 = m.groups()
-			src = '%sf * %s %s %sf * %s' % (cst1, var1, sign, cst2, var2)
+			src = '%9.6ff * %s %s %9.6ff * %s' % (float(cst1), var1, sign, float(cst2), var2)
 			applied = True
 
 		# a*src[y * src_stridea] -> a * src[y * src_stridea] 
 		if applied == False:
-			m = re.match(r'([0-9.-]+)\*(src\[\d \* src_stridea\])', src)
+			m = re.match(r'([0-9.-]+)\*(src\[[0-9 ]+ \* src_stridea\])', src)
 			if m:
 				cst1, var1 = m.groups()
-				src = '%sf * %s' % (cst1, var1)
+				src = '%9.6ff * %s' % (float(cst1), var1)
 				applied = True
+		
+		# a*x + a*y -> a * (x + y)
+		if applied == False:
+			m = re.match(r'([0-9.-]+)\*(x[0-9a-f]+_[0-9a-f]+x) ([+-]) ([0-9.-]+)\*(x[0-9a-f]+_[0-9a-f]+x)', src)
+			if m:
+				cst1, var1, sign, cst2, var2 = m.groups()
+				if cst1 == cst2:
+					src = '%9.6ff * (%s %s %s)' % (float(cst1), var1, sign, var2)
+					applied = True
 
 		# a*x + b*z + a*y -> a * (x + y) + b * z
 		if applied == False:
-			m = re.match(r'([0-9.-]+)\*(x[0-9a-f]+_[0-9a-f]+x) ([+-] [^+-]*) ([+-]) ([0-9.-]+)\*(x[0-9a-f]+_[0-9a-f]+x)', src)
+			m = re.match(r'([0-9.-]+)\*(x[0-9a-f]+_[0-9a-f]+x) ([+-]) ([0-9.-]+)\*(x[0-9a-f]+_[0-9a-f]+x) ([+-]) ([0-9.-]+)\*(x[0-9a-f]+_[0-9a-f]+x)', src)
 			if m:
-				cst1, var1, middle_expr, sign, cst2, var2 = m.groups()
+				cst1, var1, sign2, cst3, var3, sign, cst2, var2 = m.groups()
 				if cst1 == cst2:
-					if middle_expr != '':
-						m2 = re.match(r'([+-]) ([0-9.-]+)\*(x[0-9a-f]+_[0-9a-f]+x)', middle_expr)
-						sign2, cst3, var3 = m2.groups()
-						middle_expr = '%s %sf * %s' % (sign2, cst3, var3)
-					src = '%sf * (%s %s %s) %s' % (cst1, var1, sign, var2, middle_expr)
+					src = '%9.6ff * (%s %s %s) %s %9.6ff * %s' % (float(cst1), var1, sign, var2, sign2, float(cst3), var3)
 					applied = True
  
 		# a*x + b*y -> a * x + b * y 
@@ -111,7 +103,7 @@ def get_code(n, fn):
 			m = re.match(r'([0-9.-]+)\*(x[0-9a-f]+_[0-9a-f]+x) ([+-]) ([0-9.-]+)\*(x[0-9a-f]+_[0-9a-f]+x)', src)
 			if m:
 				cst1, var1, sign, cst2, var2 = m.groups()
-				src = '%sf * %s %s %sf * %s' % (cst1, var1, sign, cst2, var2)
+				src = '%9.6ff * %s %s %9.6ff * %s' % (float(cst1), var1, sign, float(cst2), var2)
 				applied = True
 
 		# a*x -> a * x
@@ -119,7 +111,7 @@ def get_code(n, fn):
 			m = re.match(r'([0-9.-]+)\*(x[0-9a-f]+_[0-9a-f]+x)', src)
 			if m:
 				cst1, var1 = m.groups()
-				src = '%sf * %s' % (cst1, var1)
+				src = '%9.6ff * %s' % (float(cst1), var1)
 
 		print('%s\n' % src)
 
@@ -178,19 +170,22 @@ def get_code(n, fn):
 
 	return ret
 
-def write_dct_code(n):
-	outsrc = open('template.h').read() #% tpldata
-	outsrc = outsrc.replace('%BLOCK_SIZE%', str(n))
+def write_dct_code(n, outsrcfile):
+	outsrc = outsrcfile.replace('%BLOCK_SIZE%', str(n))
 	fdct = get_code(n, 'cosII')
 	idct = get_code(n, 'cosIII')
 	outsrc = outsrc.replace('%CODE_FDCT%', fdct)
 	outsrc = outsrc.replace('%CODE_IDCT%', idct)
-	open('generated/dct%d.h' % n, 'w').write(outsrc)
-	open('refs/fdct%d' % n, 'w').write(fdct)
-	open('refs/idct%d' % n, 'w').write(idct)
+	open('../Fast-DCT-Generator/generated/dct%d.h' % n, 'w').write(outsrc)
+	open('../Fast-DCT-Generator/refs/fdct%d' % n, 'w').write(fdct)
+	open('../Fast-DCT-Generator/refs/idct%d' % n, 'w').write(idct)
 
 if __name__ == '__main__':
-	if len(sys.argv) != 2:
-		print('Usage: %s <N>' % sys.argv[0])
-		sys.exit(0)
-	write_dct_code(1<<int(sys.argv[1]))
+	outsrcfile = open('../Fast-DCT-Generator/template.h').read()
+	write_dct_code(1<<1, outsrcfile)
+	write_dct_code(1<<2, outsrcfile)
+	write_dct_code(1<<3, outsrcfile)
+	write_dct_code(1<<4, outsrcfile)
+	write_dct_code(1<<5, outsrcfile)
+	write_dct_code(1<<6, outsrcfile)
+	write_dct_code(1<<7, outsrcfile)
