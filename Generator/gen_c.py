@@ -176,7 +176,7 @@ def write_dct_code(n, outsrcfile):
 	idct = get_code(n, 'cosIII')
 	outsrc = outsrc.replace('%CODE_FDCT%', fdct)
 	outsrc = outsrc.replace('%CODE_IDCT%', idct)
-	open('../Fast-DCT-Generator/generated/dct%d.h' % n, 'w').write(outsrc)
+	open('../Fast-DCT-Generator/generated_dct/dct%d.h' % n, 'w').write(outsrc)
 	open('../Fast-DCT-Generator/refs/fdct%d' % n, 'w').write(fdct)
 	open('../Fast-DCT-Generator/refs/idct%d' % n, 'w').write(idct)
 
@@ -189,3 +189,4 @@ if __name__ == '__main__':
 	write_dct_code(1<<5, outsrcfile)
 	write_dct_code(1<<6, outsrcfile)
 	write_dct_code(1<<7, outsrcfile)
+	write_dct_code(1<<8, outsrcfile)
