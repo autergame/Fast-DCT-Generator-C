@@ -1,2 +1,2 @@
-		dst[0 * dst_stridea] =  0.707107f * src[0 * src_stridea] +  0.707107f * src[1 * src_stridea];
-		dst[1 * dst_stridea] =  0.707107f * src[0 * src_stridea] -  0.707107f * src[1 * src_stridea];
+		dst[0 * stridea] = v_0 * (src[0 * stridea] + src[1 * stridea]);
+		dst[1 * stridea] = v_0 * (src[0 * stridea] - src[1 * stridea]);

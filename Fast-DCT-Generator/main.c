@@ -13,8 +13,10 @@
 #include "generated_dct\dct64.h"
 #include "generated_dct\dct128.h"
 #include "generated_dct\dct256.h"
+#include "generated_dct\dct512.h"
 
-void DCT_function(float* dst, const float* src,
+
+void DCT_function(const float* src, float* dst,
 	const float* DCTTable, const float* alphaTable, int block_size, float block)
 {
 	for (int v = 0; v < block_size; v++)
@@ -40,7 +42,7 @@ void DCT_function(float* dst, const float* src,
 	}
 }
 
-void inverse_DCT_function(float* dst, const float* src,
+void inverse_DCT_function(const float* src, float* dst,
 	const float* DCTTable, const float* alphaTable, int block_size, float block)
 {
 	for (int y = 0; y < block_size; y++)
@@ -72,23 +74,60 @@ void printffprintf(char* strout, int size, FILE* file, const char* format, ...)
 	__crt_va_start(_ArgList, format);
 	_vsprintf_s_l(strout, size, format, NULL, _ArgList);
 	__crt_va_end(_ArgList);
+
 	printf(strout);
 	fprintf(file, strout);
 }
 
-void check_output(const char* name, const float* ref, const float* out,
-	int block_size, FILE* file, char* strout, int size)
+void check_output(const char* name, const float* src, const float* ref, const float* out,
+	int block_size, int block_size_full, FILE* file, char* strout, int size)
 {
-	for (int i = 0; i < block_size * block_size; i++)
+	float diffsum = 0;
+	float diffpercentagesum = 0;
+
+	float srcmax = 0, refmax = 0, outmax = 0;
+	for (int i = 0; i < block_size_full; i++)
+	{
+		float srcabs = fabsf(src[i]);
+		if (srcabs > srcmax)
+			srcmax = srcabs;
+
+		float refabs = fabsf(ref[i]);
+		if (refabs > refmax)
+			refmax = refabs;
+
+		float outabs = fabsf(out[i]);
+		if (outabs > outmax)
+			outmax = outabs;
+	}
+
+	int srcdigits = (int)log10f(srcmax) + 9;
+	int refdigits = (int)log10f(refmax) + 9;
+	int outdigits = (int)log10f(outmax) + 9;
+
+	int indexdigits = (int)log10(block_size_full) + 1;
+
+	for (int i = 0; i < block_size_full; i++)
 	{
 		float diff = fabsf(ref[i] - out[i]);
-		float diffpercentage = fabsf(diff / ((ref[i] + out[i]) / 2.f)) * 100.f;
-		printffprintf(strout, size, file, "%s %dx%d index: %5d ref: %12.6f out: %12.6f diff: %9.6f %10.6f%%%%\n",
-			name, block_size, block_size, i, ref[i], out[i], diff, diffpercentage);
+		float average = (fabsf(ref[i]) + fabsf(out[i])) / 2.f;
+		float diffpercentage = fabsf(diff / average) * 100.f;
+
+		printffprintf(strout, size, file,
+			"%s %dx%d index: %*d  src: %*.6f ref: %*.6f out: %*.6f  diff: %.6f %.6f%%%%\n",
+			name, block_size, block_size,
+			indexdigits, i, srcdigits, src[i], refdigits, ref[i], outdigits, out[i], diff, diffpercentage);
+
+		diffsum += diff;
+		diffpercentagesum += diffpercentage;
 	}
+	
+	printffprintf(strout, size, file,
+		"%s accumulated diff: %.6f %.6f%%%%\n\n",
+		name, diffsum / block_size_full, diffpercentagesum / block_size_full);
 }
 
-typedef void (*function_dct)(float*, const float*);
+typedef void (*function_dct)(const float*, float*);
 
 function_dct functions_fdct[] = {
 	&fdct_2x2,
@@ -98,7 +137,8 @@ function_dct functions_fdct[] = {
 	&fdct_32x32,
 	&fdct_64x64,
 	&fdct_128x128,
-	&fdct_256x256
+	&fdct_256x256,
+	&fdct_512x512
 };
 
 function_dct functions_idct[] = {
@@ -109,7 +149,8 @@ function_dct functions_idct[] = {
 	&idct_32x32,
 	&idct_64x64,
 	&idct_128x128,
-	&idct_256x256
+	&idct_256x256,
+	&idct_512x512
 };
 
 void start_time_func(LARGE_INTEGER *start_time, LARGE_INTEGER *frequency)
@@ -138,13 +179,32 @@ int main()
 	float* ref_fdct, *ref_idct, *out_fdct, *out_idct, *dct_src;
 	float sqrt1_2 = 1.f / sqrtf(2.f);
 
-	for (int index = 0; index < sizeof(functions_fdct) / sizeof(function_dct); index++)
+	int dctarraysize = sizeof(functions_fdct) / sizeof(function_dct);
+	int dctarraysizeblocksize = 1 << dctarraysize;
+
+	float* dct_src_max = (float*)calloc(dctarraysizeblocksize * dctarraysizeblocksize, sizeof(float));
+	for (int i = 0; i < dctarraysizeblocksize * dctarraysizeblocksize; i++)
+		dct_src_max[i] = (float)(rand() % 255) + 1.f;
+
+	for (int index = 0; index < dctarraysize; index++)
 	{
 		int block_size = 1 << (index + 1);
 		int block_size_full = block_size * block_size;
 		float block = 2.f / (float)block_size;
 
+		dct_src = (float*)calloc(block_size_full, sizeof(float));
+		for (int y = 0; y < block_size; y++)
+		{
+			for (int x = 0; x < block_size; x++)
+			{
+				dct_src[y * block_size + x] = dct_src_max[y * dctarraysizeblocksize + x];
+			}
+		}
+
 		DCTTable = (float*)calloc(block_size_full, sizeof(float));
+		alphaTable = (float*)calloc(block_size_full, sizeof(float));
+
+		start_time_func(&start_time, &frequency);
 		for (int y = 0; y < block_size; y++)
 		{
 			for (int x = 0; x < block_size; x++)
@@ -152,8 +212,6 @@ int main()
 				DCTTable[y * block_size + x] = cosf((2.f * y + 1.f) * x * 3.141592f / (2.f * block_size));
 			}
 		}
-
-		alphaTable = (float*)calloc(block_size_full, sizeof(float));
 		for (int y = 0; y < block_size; y++)
 		{
 			for (int x = 0; x < block_size; x++)
@@ -161,48 +219,50 @@ int main()
 				alphaTable[y * block_size + x] = (y == 0 ? sqrt1_2 : 1.f) * (x == 0 ? sqrt1_2 : 1.f);
 			}
 		}
+		double dctalphatableelapsed = stop_time_func(start_time, frequency);
 
 		ref_fdct = (float*)calloc(block_size_full, sizeof(float));
 		ref_idct = (float*)calloc(block_size_full, sizeof(float));
 		out_fdct = (float*)calloc(block_size_full, sizeof(float));
 		out_idct = (float*)calloc(block_size_full, sizeof(float));
 
-		dct_src = (float*)calloc(block_size_full, sizeof(float));
-		for (int i = 0; i < block_size_full; i++)
-			dct_src[i] = (float)(rand() % 256);
-
 		printf("Generating FDCT\n");
 
 		start_time_func(&start_time, &frequency);
-		DCT_function(ref_fdct, dct_src, DCTTable, alphaTable, block_size, block);
+		DCT_function(dct_src, ref_fdct, DCTTable, alphaTable, block_size, block);
 		double fdctelapsedref = stop_time_func(start_time, frequency);
 
 		start_time_func(&start_time, &frequency);
-		functions_fdct[index](out_fdct, dct_src);
+		functions_fdct[index](dct_src, out_fdct);
 		double fdctelapsedout = stop_time_func(start_time, frequency);
 
 		printf("Generating IDCT\n");
 
 		start_time_func(&start_time, &frequency);
-		inverse_DCT_function(ref_idct, ref_fdct, DCTTable, alphaTable, block_size, block);
+		inverse_DCT_function(ref_fdct, ref_idct, DCTTable, alphaTable, block_size, block);
 		double idctelapsedref = stop_time_func(start_time, frequency);
 
 		start_time_func(&start_time, &frequency);
-		functions_idct[index](out_idct, out_fdct);
+		functions_idct[index](out_fdct, out_idct);
 		double idctelapsedout = stop_time_func(start_time, frequency);
 
 		printf("Finished\n\n");
 
-		printffprintf(strout, sizeof(strout), file, "FDCT IDCT %dx%d\n", block_size, block_size);
-		printffprintf(strout, sizeof(strout), file,
-			"FDCT ref total time: %9.6f ms out total time: %9.6f ms\n", fdctelapsedref, fdctelapsedout);
+		printffprintf(strout, sizeof(strout), file, "FDCT %dx%d\n", block_size, block_size);
+		printffprintf(strout, sizeof(strout), file, "FDCT ref table time: %.6f ms\n", dctalphatableelapsed);
+		printffprintf(strout, sizeof(strout), file, "FDCT ref total time: %.6f ms\n", fdctelapsedref);
+		printffprintf(strout, sizeof(strout), file, "FDCT out total time: %.6f ms\n\n", fdctelapsedout);
 
-		check_output("FDCT", ref_fdct, out_fdct, block_size, file, strout, sizeof(strout));
-		printffprintf(strout, sizeof(strout), file,
-			"\nIDCT ref total time: %9.6f ms out total time: %9.6f ms\n", idctelapsedref, idctelapsedout);
+		check_output("FDCT", dct_src, ref_fdct, out_fdct, block_size, block_size_full, file, strout, sizeof(strout));
 
-		check_output("IDCT", ref_idct, out_idct, block_size, file, strout, sizeof(strout));
-		printffprintf(strout, sizeof(strout), file, "\n\n");
+		printffprintf(strout, sizeof(strout), file, "IDCT %dx%d\n", block_size, block_size);
+		printffprintf(strout, sizeof(strout), file, "IDCT ref table time: %.6f ms\n", dctalphatableelapsed);
+		printffprintf(strout, sizeof(strout), file, "IDCT ref total time: %.6f ms\n", idctelapsedref);
+		printffprintf(strout, sizeof(strout), file, "IDCT out total time: %.6f ms\n\n", idctelapsedout);
+
+		check_output("IDCT", ref_fdct, ref_idct, out_idct, block_size, block_size_full, file, strout, sizeof(strout));
+
+		printffprintf(strout, sizeof(strout), file, "\n");
 
 		free(DCTTable);
 		free(alphaTable);
@@ -214,6 +274,8 @@ int main()
 
 		free(dct_src);
 	}
+
+	free(dct_src_max);
 
 	fclose(file);
 

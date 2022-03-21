@@ -6,11 +6,21 @@ from collections import Counter
 
 import plonka
 
-import warnings
-warnings.filterwarnings('ignore', category=DeprecationWarning)
+def legacy_dot(a, b):
+	if a.cols == b.rows:
+		if b.cols != 1:
+			a = a.T
+			b = b.T
+		return sp.flatten((a * b).tolist())
+	if a.cols == b.cols:
+		return a.dot(b.T)
+	elif a.rows == b.rows:
+		return a.T.dot(b)
+	else:
+		raise sp.ShapeError("Dimensions incorrect for legacy_dot: %s, %s" % (a.shape, b.shape))
 
 def dotx(y, matrix, x, code):
-	calc = sp.Matrix(matrix).dot(x)
+	calc = legacy_dot(sp.Matrix(matrix), sp.Matrix(x))
 	if not (isinstance(calc, list) or isinstance(calc, sp.Matrix)):
 		calc = [calc]
 	for ij in zip(y, calc):
@@ -21,7 +31,6 @@ call_num = 0
 
 def next_syms(x):
 	n = len(x)
-	x0s = str(x[0])
 	global call_num
 	prefix = 'x%x_' % call_num
 	call_num += 1
@@ -49,8 +58,8 @@ def tfm_run(name, y, x, code, scale_factor=None):
 def get_code(n, fn):
 	global call_num
 	call_num = 0
-	x = sp.Matrix([sp.Symbol('src[%*d * src_stridea]' % (len(str(n)), i)) for i in range(n)])
-	y = sp.Matrix([sp.Symbol('dst[%*d * dst_stridea]' % (len(str(n)), i)) for i in range(n)])
+	x = sp.Matrix([sp.Symbol('src[%*d * stridea]' % (len(str(n)), i)) for i in range(n)])
+	y = sp.Matrix([sp.Symbol('dst[%*d * stridea]' % (len(str(n)), i)) for i in range(n)])
 	code = []
 	tfm_run(fn, y, x, code)
 	outcode = []
@@ -65,45 +74,55 @@ def get_code(n, fn):
 		src = str(src).replace('*1.0','')
 
 		applied = False
-		# a*src[y * src_stridea] + b*src[y * src_stridea] -> a * src[y * src_stridea] + b * src[y * src_stridea] 
-		m = re.match(r'([0-9.-]+)\*(src\[[0-9 ]+ \* src_stridea\]) ([+-]) ([0-9.-]+)\*(src\[[0-9 ]+ \* src_stridea\])', src)
+		# a*src[x * stridea] +- a*src[y * stridea] -> a * (x +- y)
+		m = re.match(r'([0-9.-]+)\*(src\[[0-9 ]+ \* stridea\]) ([+-]) ([0-9.-]+)\*(src\[[0-9 ]+ \* stridea\])', src)
 		if m:
 			cst1, var1, sign, cst2, var2 = m.groups()
-			src = '%9.6ff * %s %s %9.6ff * %s' % (float(cst1), var1, sign, float(cst2), var2)
-			applied = True
+			if cst1 == cst2:
+				src = '%.6ff * (%s %s %s)' % (float(cst1), var1, sign, var2)
+				applied = True
 
-		# a*src[y * src_stridea] -> a * src[y * src_stridea] 
+
+		# a*src[x * stridea] +- b*src[y * stridea] -> a * src[x * stridea] +- b * src[y * stridea] 
 		if applied == False:
-			m = re.match(r'([0-9.-]+)\*(src\[[0-9 ]+ \* src_stridea\])', src)
+			m = re.match(r'([0-9.-]+)\*(src\[[0-9 ]+ \* stridea\]) ([+-]) ([0-9.-]+)\*(src\[[0-9 ]+ \* stridea\])', src)
+			if m:
+				cst1, var1, sign, cst2, var2 = m.groups()
+				src = '%.6ff * %s %s %.6ff * %s' % (float(cst1), var1, sign, float(cst2), var2)
+				applied = True
+
+		# a*src[x * stridea] -> a * src[x * stridea] 
+		if applied == False:
+			m = re.match(r'([0-9.-]+)\*(src\[[0-9 ]+ \* stridea\])', src)
 			if m:
 				cst1, var1 = m.groups()
-				src = '%9.6ff * %s' % (float(cst1), var1)
+				src = '%.6ff * %s' % (float(cst1), var1)
 				applied = True
 		
-		# a*x + a*y -> a * (x + y)
+		# a*x +- a*y -> a * (x +- y)
 		if applied == False:
 			m = re.match(r'([0-9.-]+)\*(x[0-9a-f]+_[0-9a-f]+x) ([+-]) ([0-9.-]+)\*(x[0-9a-f]+_[0-9a-f]+x)', src)
 			if m:
 				cst1, var1, sign, cst2, var2 = m.groups()
 				if cst1 == cst2:
-					src = '%9.6ff * (%s %s %s)' % (float(cst1), var1, sign, var2)
+					src = '%.6ff * (%s %s %s)' % (float(cst1), var1, sign, var2)
 					applied = True
 
-		# a*x + b*z + a*y -> a * (x + y) + b * z
+		# a*x +- b*z +- a*y -> a * (x +- y) +- b * z
 		if applied == False:
 			m = re.match(r'([0-9.-]+)\*(x[0-9a-f]+_[0-9a-f]+x) ([+-]) ([0-9.-]+)\*(x[0-9a-f]+_[0-9a-f]+x) ([+-]) ([0-9.-]+)\*(x[0-9a-f]+_[0-9a-f]+x)', src)
 			if m:
 				cst1, var1, sign2, cst3, var3, sign, cst2, var2 = m.groups()
 				if cst1 == cst2:
-					src = '%9.6ff * (%s %s %s) %s %9.6ff * %s' % (float(cst1), var1, sign, var2, sign2, float(cst3), var3)
+					src = '%.6ff * (%s %s %s) %s %.6ff * %s' % (float(cst1), var1, sign, var2, sign2, float(cst3), var3)
 					applied = True
- 
-		# a*x + b*y -> a * x + b * y 
+
+		# a*x +- b*y -> a * x +- b * y 
 		if applied == False:
 			m = re.match(r'([0-9.-]+)\*(x[0-9a-f]+_[0-9a-f]+x) ([+-]) ([0-9.-]+)\*(x[0-9a-f]+_[0-9a-f]+x)', src)
 			if m:
 				cst1, var1, sign, cst2, var2 = m.groups()
-				src = '%9.6ff * %s %s %9.6ff * %s' % (float(cst1), var1, sign, float(cst2), var2)
+				src = '%.6ff * %s %s %.6ff * %s' % (float(cst1), var1, sign, float(cst2), var2)
 				applied = True
 
 		# a*x -> a * x
@@ -111,7 +130,7 @@ def get_code(n, fn):
 			m = re.match(r'([0-9.-]+)\*(x[0-9a-f]+_[0-9a-f]+x)', src)
 			if m:
 				cst1, var1 = m.groups()
-				src = '%9.6ff * %s' % (float(cst1), var1)
+				src = '%.6ff * %s' % (float(cst1), var1)
 
 		print('%s\n' % src)
 
@@ -164,17 +183,43 @@ def get_code(n, fn):
 	# symbol indexing and renaming
 	varsfrom = sorted(set(re.findall(r'x[0-9a-f]+_[0-9a-f]+x', ret)))
 	nb_var = len(varsfrom)
-	varsto = ['x%0*x' % (len('%x' % nb_var), x) for x in range(nb_var)]
+	varsto = ['x_%0*X' % (len('%x' % nb_var), x) for x in range(nb_var)]
 	for var_from, var_to in zip(varsfrom, varsto):
 		ret = ret.replace(var_from, var_to)
 
-	return ret
+	numbers = re.findall(r'[^x_]([0-9.-]+)f', ret)
+	nlist = list(set(numbers))
+
+	maxvarsize = len(str('%x' % len(nlist)))
+
+	nvlist = []
+	nvindex = 0
+	for num in nlist:
+		nvlist.append([num, 'v_%0*X' % (maxvarsize, nvindex)])		
+		nvindex += 1
+
+	floatmaxsize = 0
+	for numvar in nvlist:
+		floatlen = len(numvar[0])
+		if floatlen > floatmaxsize:
+			floatmaxsize = floatlen
+
+	varnumbers = []
+	for numvar in nvlist:
+		ret = ret.replace(numvar[0] + 'f', numvar[1])
+		varnumbers.append('\tstatic const float %s = %*.6ff;' % (numvar[1], floatmaxsize, float(numvar[0])))
+
+	varnumbersret = '\n'.join(varnumbers)
+
+	return ret, varnumbersret
 
 def write_dct_code(n, outsrcfile):
 	outsrc = outsrcfile.replace('%BLOCK_SIZE%', str(n))
-	fdct = get_code(n, 'cosII')
-	idct = get_code(n, 'cosIII')
+	fdct, fvars = get_code(n, 'cosII')
+	idct, ivars = get_code(n, 'cosIII')
+	outsrc = outsrc.replace('%VARS_FDCT%', fvars)
 	outsrc = outsrc.replace('%CODE_FDCT%', fdct)
+	outsrc = outsrc.replace('%VARS_IDCT%', ivars)
 	outsrc = outsrc.replace('%CODE_IDCT%', idct)
 	open('../Fast-DCT-Generator/generated_dct/dct%d.h' % n, 'w').write(outsrc)
 	open('../Fast-DCT-Generator/refs/fdct%d' % n, 'w').write(fdct)
@@ -182,11 +227,12 @@ def write_dct_code(n, outsrcfile):
 
 if __name__ == '__main__':
 	outsrcfile = open('../Fast-DCT-Generator/template.h').read()
-	write_dct_code(1<<1, outsrcfile)
-	write_dct_code(1<<2, outsrcfile)
-	write_dct_code(1<<3, outsrcfile)
-	write_dct_code(1<<4, outsrcfile)
-	write_dct_code(1<<5, outsrcfile)
-	write_dct_code(1<<6, outsrcfile)
-	write_dct_code(1<<7, outsrcfile)
-	write_dct_code(1<<8, outsrcfile)
+	write_dct_code(2, outsrcfile)
+	write_dct_code(4, outsrcfile)
+	write_dct_code(8, outsrcfile)
+	write_dct_code(16, outsrcfile)
+	write_dct_code(32, outsrcfile)
+	write_dct_code(64, outsrcfile)
+	write_dct_code(128, outsrcfile)
+	write_dct_code(256, outsrcfile)
+	write_dct_code(512, outsrcfile)

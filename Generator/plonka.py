@@ -180,7 +180,7 @@ tfm_props = {
 	'cosIV':  (cosIV_neq2_mat,   0,  1, 'cosII',  'cosII',  0, 0),
 	'cosI':   (cosI_neq2_mat,   -1,  1, 'cosI',   'cosIII', 1, 1),
 	'cosIII': (cosIII_neq2_mat,  0,  0, 'cosI',   'sinI',   1, 1),
-	'sinI':   (sinI_neq2_mat,	1, -1, 'cosIII', 'sinI',   0, 1),
+	'sinI':   (sinI_neq2_mat,	 1, -1, 'cosIII', 'sinI',   0, 1),
 }
 
 def tfm_run(name, x, first_call=True):

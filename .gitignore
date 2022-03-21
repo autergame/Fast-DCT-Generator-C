@@ -4,6 +4,8 @@
 *.ipdb
 Debug/
 x64/Debug/
+Release/output.txt
+x64/Release/output.txt
 Fast-DCT-Generator/output.txt
 Fast-DCT-Generator/Debug/
 Fast-DCT-Generator/Release/
