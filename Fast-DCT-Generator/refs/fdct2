@@ -1,2 +1,5 @@
-		dst[0 * stridea] = v_0 * (src[0 * stridea] + src[1 * stridea]);
-		dst[1 * stridea] = v_0 * (src[0 * stridea] - src[1 * stridea]);
+		const float s_0 = src[0 * stridea];
+		const float s_1 = src[1 * stridea];
+
+		out[0 * stridea] = v_0 * (s_0 + s_1);
+		out[1 * stridea] = v_0 * (s_0 - s_1);

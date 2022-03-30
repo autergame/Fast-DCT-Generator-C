@@ -58,8 +58,9 @@ def tfm_run(name, y, x, code, scale_factor=None):
 def get_code(n, fn):
 	global call_num
 	call_num = 0
-	x = sp.Matrix([sp.Symbol('src[%*d * stridea]' % (len(str(n)), i)) for i in range(n)])
-	y = sp.Matrix([sp.Symbol('dst[%*d * stridea]' % (len(str(n)), i)) for i in range(n)])
+	nlen = len('%x' % n)
+	x = sp.Matrix([sp.Symbol('s_%0*X' % (nlen, i)) for i in range(n)])
+	y = sp.Matrix([sp.Symbol('out[%*d * stridea]' % (len(str(n)), i)) for i in range(n)])
 	code = []
 	tfm_run(fn, y, x, code)
 	outcode = []
@@ -74,8 +75,8 @@ def get_code(n, fn):
 		src = str(src).replace('*1.0','')
 
 		applied = False
-		# a*src[x * stridea] +- a*src[y * stridea] -> a * (x +- y)
-		m = re.match(r'([0-9.-]+)\*(src\[[0-9 ]+ \* stridea\]) ([+-]) ([0-9.-]+)\*(src\[[0-9 ]+ \* stridea\])', src)
+		# a*s_x +- a*s_y -> a * (x +- y)
+		m = re.match(r'([0-9.-]+)\*(s_[0-9A-F]+) ([+-]) ([0-9.-]+)\*(s_[0-9A-F]+)', src)
 		if m:
 			cst1, var1, sign, cst2, var2 = m.groups()
 			if cst1 == cst2:
@@ -83,17 +84,17 @@ def get_code(n, fn):
 				applied = True
 
 
-		# a*src[x * stridea] +- b*src[y * stridea] -> a * src[x * stridea] +- b * src[y * stridea] 
+		# a*s_x +- b*s_y -> a * s_x +- b * s_y 
 		if applied == False:
-			m = re.match(r'([0-9.-]+)\*(src\[[0-9 ]+ \* stridea\]) ([+-]) ([0-9.-]+)\*(src\[[0-9 ]+ \* stridea\])', src)
+			m = re.match(r'([0-9.-]+)\*(s_[0-9A-F]+) ([+-]) ([0-9.-]+)\*(s_[0-9A-F]+)', src)
 			if m:
 				cst1, var1, sign, cst2, var2 = m.groups()
 				src = '%.6ff * %s %s %.6ff * %s' % (float(cst1), var1, sign, float(cst2), var2)
 				applied = True
 
-		# a*src[x * stridea] -> a * src[x * stridea] 
+		# a*s_x -> a * s_x
 		if applied == False:
-			m = re.match(r'([0-9.-]+)\*(src\[[0-9 ]+ \* stridea\])', src)
+			m = re.match(r'([0-9.-]+)\*(s_[0-9A-F]+)', src)
 			if m:
 				cst1, var1 = m.groups()
 				src = '%.6ff * %s' % (float(cst1), var1)
@@ -140,7 +141,6 @@ def get_code(n, fn):
 
 		# drop no-op lines such as "const float a = b;" with aliases
 		if re.match(r'^const float x[0-9a-f]+_[0-9a-f]+x = x[0-9a-f]+_[0-9a-f]+x;$', line):
-			#outcode.append(indent + '//' + line)
 			aliases[dst] = aliases.get(src, src)
 			continue
 
@@ -180,6 +180,12 @@ def get_code(n, fn):
 		outcode = [line for line in outcode if orphan not in line]
 	ret = '\n'.join(outcode)
 
+	slen = len(str(n))
+	srcvars = []
+	for i in range(n):
+		srcvars.append('\t\tconst float s_%0*X = src[%*d * stridea];' % (nlen, i, slen, i))
+	ret = '\n'.join(srcvars) + '\n\n' + ret 
+
 	# symbol indexing and renaming
 	varsfrom = sorted(set(re.findall(r'x[0-9a-f]+_[0-9a-f]+x', ret)))
 	nb_var = len(varsfrom)
@@ -209,7 +215,13 @@ def get_code(n, fn):
 		ret = ret.replace(numvar[0] + 'f', numvar[1])
 		varnumbers.append('\tstatic const float %s = %*.6ff;' % (numvar[1], floatmaxsize, float(numvar[0])))
 
-	varnumbersret = '\n'.join(varnumbers)
+	if varnumbers != []:
+		varnumbersret = '\n'.join(varnumbers)
+
+	fro = re.search(r'(;)(\n\t\t)(out\[[0 ]+ \* stridea\])', ret)
+	if fro:
+		c, ntt, out = fro.groups()
+		ret = ret.replace(c + ntt + out, c + '\n' + ntt + out)
 
 	return ret, varnumbersret
 

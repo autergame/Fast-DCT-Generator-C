@@ -1,10 +1,16 @@
-		const float x_0 = v_5 * src[0 * stridea];
-		const float x_1 = v_2 * src[1 * stridea] + v_6 * src[3 * stridea];
-		const float x_2 = v_5 * src[2 * stridea];
-		const float x_3 = v_1 * src[1 * stridea] + v_2 * src[3 * stridea];
-		const float x_4 = v_4 * (x_0 - x_2);
-		const float x_5 = v_3 * x_3;
-		dst[0 * stridea] = v_0 * (x_0 + x_2) + v_4 * x_1;
-		dst[1 * stridea] = v_3 * (x_4 - x_5);
-		dst[2 * stridea] = v_3 * (x_4 + x_5);
-		dst[3 * stridea] = v_0 * (x_0 + x_2) - v_4 * x_1;
+		const float s_0 = src[0 * stridea];
+		const float s_1 = src[1 * stridea];
+		const float s_2 = src[2 * stridea];
+		const float s_3 = src[3 * stridea];
+
+		const float x_0 = v_5 * s_0;
+		const float x_1 = v_2 * s_1 + v_4 * s_3;
+		const float x_2 = v_5 * s_2;
+		const float x_3 = v_1 * s_1 + v_2 * s_3;
+		const float x_4 = v_3 * (x_0 - x_2);
+		const float x_5 = v_6 * x_3;
+
+		out[0 * stridea] = v_0 * (x_0 + x_2) + v_3 * x_1;
+		out[1 * stridea] = v_6 * (x_4 - x_5);
+		out[2 * stridea] = v_6 * (x_4 + x_5);
+		out[3 * stridea] = v_0 * (x_0 + x_2) - v_3 * x_1;
