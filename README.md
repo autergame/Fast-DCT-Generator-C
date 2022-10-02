@@ -1,5 +1,5 @@
-# Fast-DCT-Generator
-Python based Fast DCT (FDCT) and Fast Inverse DCT (IDCT) generator for several dimensions to C and C++
+# Fast-DCT-Generator-C
+Python based Fast DCT (FDCT) and Fast Inverse DCT (FIDCT) generator for several dimensions to C and C++
 
 ## Help From:
 * https://github.com/ubitux/dct
