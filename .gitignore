@@ -5,9 +5,10 @@
 output.txt
 Debug/
 x64/Debug/
-Fast-DCT-Generator/Debug/
-Fast-DCT-Generator/Release/
-Fast-DCT-Generator/x64/Debug/
-Fast-DCT-Generator/x64/Release/
+Tester/Debug/
+Tester/Release/
+Tester/x64/Debug/
+Tester/x64/Release/
+Tester/__pycache__/
 Generator/__pycache__/
 StructLayoutSettings.json

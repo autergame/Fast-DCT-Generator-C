@@ -226,19 +226,17 @@ def get_code(n, fn):
 	return ret, varnumbersret
 
 def write_dct_code(n, outsrcfile):
-	outsrc = outsrcfile.replace('%BLOCK_SIZE%', str(n))
 	fdct, fvars = get_code(n, 'cosII')
 	idct, ivars = get_code(n, 'cosIII')
+	outsrc = outsrcfile.replace('%BLOCK_SIZE%', str(n))
 	outsrc = outsrc.replace('%VARS_FDCT%', fvars)
 	outsrc = outsrc.replace('%CODE_FDCT%', fdct)
 	outsrc = outsrc.replace('%VARS_IDCT%', ivars)
 	outsrc = outsrc.replace('%CODE_IDCT%', idct)
-	open('../Fast-DCT-Generator/generated_dct/dct%d.h' % n, 'w').write(outsrc)
-	open('../Fast-DCT-Generator/refs/fdct%d' % n, 'w').write(fdct)
-	open('../Fast-DCT-Generator/refs/idct%d' % n, 'w').write(idct)
+	open('../Tester/generated_dct/dct%d.h' % n, 'w').write(outsrc)
 
 if __name__ == '__main__':
-	outsrcfile = open('../Fast-DCT-Generator/template.h').read()
+	outsrcfile = open('template.h').read()
 	write_dct_code(2, outsrcfile)
 	write_dct_code(4, outsrcfile)
 	write_dct_code(8, outsrcfile)
