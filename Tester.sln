@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.31729.503
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Fast-DCT-Generator", "Fast-DCT-Generator\Fast-DCT-Generator.vcxproj", "{D91FA6F4-5999-4882-B526-64AE8E85698C}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Tester", "Tester\Tester.vcxproj", "{D91FA6F4-5999-4882-B526-64AE8E85698C}"
 EndProject
 Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "Generator", "Generator\Generator.pyproj", "{9D862AD9-3135-433D-8BAE-C40D75DCA3C7}"
 EndProject
