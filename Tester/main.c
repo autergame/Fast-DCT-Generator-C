@@ -5,15 +5,15 @@
 #include <conio.h>
 #include <Windows.h>
 
-#include "generated_dct\dct2.h"
-#include "generated_dct\dct4.h"
-#include "generated_dct\dct8.h"
-#include "generated_dct\dct16.h"
-#include "generated_dct\dct32.h"
-#include "generated_dct\dct64.h"
-#include "generated_dct\dct128.h"
-#include "generated_dct\dct256.h"
-#include "generated_dct\dct512.h"
+#include "../generated_dct/dct2.h"
+#include "../generated_dct/dct4.h"
+#include "../generated_dct/dct8.h"
+#include "../generated_dct/dct16.h"
+#include "../generated_dct/dct32.h"
+#include "../generated_dct/dct64.h"
+#include "../generated_dct/dct128.h"
+#include "../generated_dct/dct256.h"
+#include "../generated_dct/dct512.h"
 
 
 void DCT_function(const float* src, float* dst,
